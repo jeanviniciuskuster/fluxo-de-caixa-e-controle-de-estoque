@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glassmorphism UI</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #807a86 0%, #2575fc 100%);
+            font-family: 'Poppins', sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h2 { text-shadow: 0 0 5px rgba(255,255,255,0.5); }
+        input, select, button {
+            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.2); color: white;
+        }
+        input::placeholder { color: #ddd; }
+        button { background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(5px); cursor: pointer; font-weight: bold; }
+        button:hover { background: rgba(255, 255, 255, 0.6); }
+        .item-list { list-style: none; padding: 0; max-height: 200px; overflow-y: auto; }
+        .item-list li { background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .chart-container { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 20px; border-radius: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h2>Fluxo de Caixa</h2>
+            <form id="fluxo-form">
+                <label for="descricao-fluxo">Descrição:</label>
+                <input type="text" id="descricao-fluxo" required>
+                <label for="valor-fluxo">Valor:</label>
+                <input type="number" id="valor-fluxo" step="0.01" required>
+                <label for="tipo-fluxo">Tipo:</label>
+                <select id="tipo-fluxo">
+                    <option value="entrada">Entrada</option>
+                    <option value="saida">Saída</option>
+                </select>
+                <button type="submit">Adicionar Lançamento</button>
+            </form>
+            <ul id="lista-fluxo" class="item-list"></ul>
+        </div>
+        <div class="card">
+            <h2>Controle de Estoque</h2>
+            <form id="estoque-form">
+                <label for="descricao-estoque">Produto:</label>
+                <input type="text" id="descricao-estoque" required>
+                <label for="quantidade-estoque">Quantidade:</label>
+                <input type="number" id="quantidade-estoque" required>
+                <button type="submit">Adicionar Produto</button>
+            </form>
+            <ul id="lista-estoque" class="item-list"></ul>
+        </div>
+    </div>
+    <div class="container" style="margin-top: 20px;">
+        <div class="chart-container"><canvas id="fluxo-pizza-chart"></canvas></div>
+        <div class="chart-container"><canvas id="estoque-bar-chart"></canvas></div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let fluxoDeCaixa = [{ descricao: 'Venda de Produto A', valor: 150, tipo: 'entrada' }, { descricao: 'Compra de Material B', valor: 80, tipo: 'saida' }];
+        let estoque = [{ produto: 'Teclado Mecânico', quantidade: 20 }, { produto: 'Mouse Gamer', quantidade: 50 }];
+        const formFluxo = document.getElementById('fluxo-form');
+        const listaFluxo = document.getElementById('lista-fluxo');
+        const formEstoque = document.getElementById('estoque-form');
+        const listaEstoque = document.getElementById('lista-estoque');
+        const ctxPizza = document.getElementById('fluxo-pizza-chart').getContext('2d');
+        const ctxBarras = document.getElementById('estoque-bar-chart').getContext('2d');
+        let fluxoPizzaChart, estoqueBarChart;
+        function renderizarFluxo() {
+            listaFluxo.innerHTML = '';
+            fluxoDeCaixa.forEach((item, index) => {
+                const li = document.createElement('li');
+                const cor = item.tipo === 'entrada' ? '#fff' : '#ffb3b3';
+                li.innerHTML = `<span>${item.descricao}: <span style="color: ${cor};">R$ ${item.valor.toFixed(2)} (${item.tipo})</span></span><button onclick="removerItem('fluxo', ${index})">Remover</button>`;
+                listaFluxo.appendChild(li);
+            });
+            atualizarGraficoPizza();
+        }
+        function renderizarEstoque() {
+            listaEstoque.innerHTML = '';
+            estoque.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${item.produto}: ${item.quantidade} un.</span><button onclick="removerItem('estoque', ${index})">Remover</button>`;
+                listaEstoque.appendChild(li);
+            });
+            atualizarGraficoBarras();
+        }
+        function removerItem(tipo, index) {
+            if (tipo === 'fluxo') { fluxoDeCaixa.splice(index, 1); renderizarFluxo(); } else { estoque.splice(index, 1); renderizarEstoque(); }
+        }
+        formFluxo.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const descricao = document.getElementById('descricao-fluxo').value;
+            const valor = parseFloat(document.getElementById('valor-fluxo').value);
+            const tipo = document.getElementById('tipo-fluxo').value;
+            fluxoDeCaixa.push({ descricao, valor, tipo });
+            formFluxo.reset();
+            renderizarFluxo();
+        });
+        formEstoque.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const produto = document.getElementById('descricao-estoque').value;
+            const quantidade = parseInt(document.getElementById('quantidade-estoque').value);
+            estoque.push({ produto, quantidade });
+            formEstoque.reset();
+            renderizarEstoque();
+        });
+        function atualizarGraficoPizza() {
+            if (fluxoPizzaChart) fluxoPizzaChart.destroy();
+            const entradas = fluxoDeCaixa.filter(item => item.tipo === 'entrada').reduce((sum, item) => sum + item.valor, 0);
+            const saidas = fluxoDeCaixa.filter(item => item.tipo === 'saida').reduce((sum, item) => sum + item.valor, 0);
+            fluxoPizzaChart = new Chart(ctxPizza, {
+                type: 'pie',
+                data: { labels: ['Entradas', 'Saídas'], datasets: [{ data: [entradas, saidas], backgroundColor: ['#00ff00', '#ff0000'], hoverOffset: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: 'white' } }, tooltip: { callbacks: { label: (tooltipItem) => `${tooltipItem.label}: R$ ${tooltipItem.raw.toFixed(2)}` } } } }
+            });
+        }
+        function atualizarGraficoBarras() {
+            if (estoqueBarChart) estoqueBarChart.destroy();
+            const labels = estoque.map(item => item.produto);
+            const data = estoque.map(item => item.quantidade);
+            estoqueBarChart = new Chart(ctxBarras, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Quantidade em Estoque', data: data, backgroundColor: '#00ffff', borderColor: 'white', borderWidth: 1 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: 'white' } } }, scales: { y: { beginAtZero: true, ticks: { color: 'white' } }, x: { ticks: { color: 'white' } } } }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', () => { renderizarFluxo(); renderizarEstoque(); });
+    </script>
+</body>
+</html>
